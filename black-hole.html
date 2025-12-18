@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Time Blackhole (Web Demo)</title>
+  <style>
+    html,body{height:100%;margin:0;background:#000;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}
+    canvas{position:fixed;inset:0;width:100%;height:100%;}
+    .ui{
+      position:fixed;left:20px;top:20px;z-index:10;color:#fff;
+      background:rgba(0,0,0,.35);backdrop-filter: blur(10px);
+      border:1px solid rgba(255,255,255,.12);border-radius:14px;
+      padding:14px 16px;max-width:360px;
+    }
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+    button{
+      border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);
+      color:#fff;border-radius:12px;padding:10px 12px;cursor:pointer;
+    }
+    input[type="range"]{width:220px}
+    .hint{opacity:.8;font-size:12px;line-height:1.4;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="ui">
+    <div style="font-weight:700">時間感覚ブラックホール（Web）</div>
+    <div class="hint">マウスを中央へ寄せるほど「吸い込み」と「時間減速」が強くなる。<br>※音はSTART後に有効</div>
+    <div class="row">
+      <button id="start">START</button>
+      <button id="stop">STOP</button>
+    </div>
+    <div class="row">
+      <label style="font-size:12px;opacity:.85">強度</label>
+      <input id="intensity" type="range" min="0" max="100" value="35">
+      <span id="val" style="font-size:12px;opacity:.85">35</span>
+    </div>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <script>
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const intensityEl = document.getElementById("intensity");
+    const valEl = document.getElementById("val");
+    const startBtn = document.getElementById("start");
+    const stopBtn = document.getElementById("stop");
+
+    let W=0,H=0, DPR=1;
+    function resize(){
+      DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      W = Math.floor(window.innerWidth * DPR);
+      H = Math.floor(window.innerHeight * DPR);
+      canvas.width = W; canvas.height = H;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    // pointer
+    let px = 0.5, py = 0.5; // 0..1
+    window.addEventListener("pointermove", e=>{
+      px = e.clientX / window.innerWidth;
+      py = e.clientY / window.innerHeight;
+    });
+
+    // Audio (WebAudio) : simple drone + heartbeat, with slowdown + lowpass
+    let audioCtx, master, lp, oscA, oscB, beat;
+    let audioOn = false;
+
+    function setupAudio(){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      master = audioCtx.createGain();
+      master.gain.value = 0.0;
+
+      lp = audioCtx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 1600;
+
+      // drone
+      oscA = audioCtx.createOscillator();
+      oscA.type = "sine";
+      oscA.frequency.value = 110;
+
+      oscB = audioCtx.createOscillator();
+      oscB.type = "triangle";
+      oscB.frequency.value = 55;
+
+      const gA = audioCtx.createGain(); gA.gain.value = 0.12;
+      const gB = audioCtx.createGain(); gB.gain.value = 0.10;
+
+      oscA.connect(gA); oscB.connect(gB);
+      gA.connect(lp); gB.connect(lp);
+      lp.connect(master);
+      master.connect(audioCtx.destination);
+
+      // heartbeat (noise click)
+      beat = audioCtx.createOscillator();
+      beat.type = "square";
+      beat.frequency.value = 2.0; // will be modulated
+      const beatGain = audioCtx.createGain();
+      beatGain.gain.value = 0.0;
+      beat.connect(beatGain);
+      beatGain.connect(master);
+
+      oscA.start(); oscB.start(); beat.start();
+    }
+
+    function audioStart(){
+      if(!audioCtx) setupAudio();
+      audioCtx.resume();
+      master.gain.cancelScheduledValues(audioCtx.currentTime);
+      master.gain.linearRampToValueAtTime(0.9, audioCtx.currentTime + 0.6);
+      audioOn = true;
+    }
+    function audioStop(){
+      if(!audioCtx) return;
+      master.gain.cancelScheduledValues(audioCtx.currentTime);
+      master.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + 0.4);
+      audioOn = false;
+    }
+
+    startBtn.addEventListener("click", audioStart);
+    stopBtn.addEventListener("click", audioStop);
+
+    intensityEl.addEventListener("input", ()=>{
+      valEl.textContent = intensityEl.value;
+    });
+
+    // Visual: starfield + swirl + vignette + "time slowdown" feel
+    const stars = Array.from({length: 900}, ()=>({
+      x: Math.random()*2-1,
+      y: Math.random()*2-1,
+      z: Math.random()*1,
+      s: Math.random()*1+0.2
+    }));
+
+    let t = 0;
+    function frame(){
+      const I = Number(intensityEl.value)/100; // 0..1
+      // distance to center (mouse)
+      const cx = (px-0.5)*2;
+      const cy = (py-0.5)*2;
+      const dist = Math.min(1, Math.hypot(cx,cy));
+      // closer to center => stronger effect
+      const pull = I * (1 - dist);
+
+      // "time warp": reduce dt as pull increases
+      const dt = 0.016 * (1 - 0.75*pull);
+      t += dt;
+
+      // audio mapping
+      if(audioCtx && audioOn){
+        const speed = 1 - 0.55*pull; // 1.0 -> 0.45
+        // pseudo "slowdown": detune frequencies
+        oscA.frequency.setTargetAtTime(110*speed, audioCtx.currentTime, 0.08);
+        oscB.frequency.setTargetAtTime(55*speed, audioCtx.currentTime, 0.08);
+        // lowpass darkening
+        lp.frequency.setTargetAtTime(1600*(0.35 + 0.65*(1-pull)), audioCtx.currentTime, 0.12);
+      }
+
+      // draw
+      ctx.clearRect(0,0,W,H);
+
+      // background gradient
+      const g = ctx.createRadialGradient(W/2,H/2,0, W/2,H/2, Math.max(W,H)*0.7);
+      g.addColorStop(0, `rgba(10,12,20,1)`);
+      g.addColorStop(1, `rgba(0,0,0,1)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,W,H);
+
+      // swirl center
+      const centerX = W/2, centerY = H/2;
+
+      // stars
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      const zoom = 0.6 + 1.4*pull;
+      ctx.scale(zoom, zoom);
+
+      for(const st of stars){
+        // rotate towards center
+        const ang = Math.atan2(st.y, st.x);
+        const r = Math.hypot(st.x, st.y);
+
+        // swirl: angle shifts over time, stronger near center
+        const swirl = (0.9*pull + 0.15) * (1/(0.15 + r)) * 0.08;
+        const a = ang + t*swirl*6;
+
+        // radial in-fall
+        const fall = (0.15 + 0.85*(1 - st.z)) * pull * 0.35;
+        const rr = Math.max(0.02, r - fall);
+
+        const x = Math.cos(a)*rr;
+        const y = Math.sin(a)*rr;
+
+        const px2 = x * Math.min(W,H)*0.48;
+        const py2 = y * Math.min(W,H)*0.48;
+
+        const size = (st.s * (0.6 + 2.2*pull)) * DPR;
+        const alpha = 0.25 + 0.75*(1 - st.z);
+
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        ctx.fillRect(px2, py2, size, size);
+      }
+      ctx.restore();
+
+      // center "event horizon"
+      ctx.save();
+      const r0 = Math.min(W,H) * (0.06 + 0.05*pull);
+      const gh = ctx.createRadialGradient(centerX, centerY, r0*0.2, centerX, centerY, r0*2.4);
+      gh.addColorStop(0, `rgba(0,0,0,1)`);
+      gh.addColorStop(0.55, `rgba(0,0,0,1)`);
+      gh.addColorStop(0.80, `rgba(160,180,255,${0.18+0.35*pull})`);
+      gh.addColorStop(1, `rgba(0,0,0,0)`);
+      ctx.fillStyle = gh;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, r0*2.6, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // vignette (time-dimming)
+      ctx.save();
+      const vg = ctx.createRadialGradient(centerX, centerY, Math.min(W,H)*0.1, centerX, centerY, Math.max(W,H)*0.75);
+      vg.addColorStop(0, `rgba(0,0,0,0)`);
+      vg.addColorStop(0.55, `rgba(0,0,0,${0.08+0.25*pull})`);
+      vg.addColorStop(1, `rgba(0,0,0,${0.65+0.25*pull})`);
+      ctx.fillStyle = vg;
+      ctx.fillRect(0,0,W,H);
+      ctx.restore();
+
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
