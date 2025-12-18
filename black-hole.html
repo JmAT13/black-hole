@@ -2,38 +2,173 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Time Blackhole (Web Demo)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <title>Experience | Time Blackhole</title>
+
+  <!-- OGP（任意。poster.jpgを置いたら活きる） -->
+  <meta property="og:title" content="Time Blackhole Experience" />
+  <meta property="og:description" content="時間感覚が吸い込まれる“体験ページ”" />
+  <meta property="og:image" content="./assets/poster.jpg" />
+
   <style>
+    :root{
+      --panel: rgba(0,0,0,.38);
+      --line: rgba(255,255,255,.12);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.70);
+    }
     html,body{height:100%;margin:0;background:#000;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}
     canvas{position:fixed;inset:0;width:100%;height:100%;}
-    .ui{
-      position:fixed;left:20px;top:20px;z-index:10;color:#fff;
-      background:rgba(0,0,0,.35);backdrop-filter: blur(10px);
-      border:1px solid rgba(255,255,255,.12);border-radius:14px;
-      padding:14px 16px;max-width:360px;
+
+    /* UI */
+    .hud{
+      position:fixed;left:16px;right:16px;top:16px;z-index:10;
+      display:flex;justify-content:space-between;gap:12px;align-items:flex-start;
+      pointer-events:none;
     }
+    .card{
+      pointer-events:auto;
+      color:var(--text);
+      background:var(--panel);
+      border:1px solid var(--line);
+      backdrop-filter: blur(12px);
+      border-radius:16px;
+      padding:12px 14px;
+      max-width:min(520px, 100%);
+      box-shadow: 0 10px 40px rgba(0,0,0,.35);
+    }
+    .title{font-weight:800;letter-spacing:.02em}
+    .sub{margin-top:6px;font-size:12px;color:var(--muted);line-height:1.5}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
-    button{
-      border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);
-      color:#fff;border-radius:12px;padding:10px 12px;cursor:pointer;
+    .btn{
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.08);
+      color:var(--text);
+      border-radius:14px;
+      padding:10px 12px;
+      cursor:pointer;
+      user-select:none;
     }
-    input[type="range"]{width:220px}
-    .hint{opacity:.8;font-size:12px;line-height:1.4;margin-top:8px}
+    .btn.primary{background:rgba(255,255,255,.14)}
+    .btn:active{transform: translateY(1px)}
+    .range{width:min(240px, 60vw)}
+    .pill{
+      font-size:12px;color:var(--muted);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:999px;
+      padding:6px 10px;
+      background:rgba(0,0,0,.22);
+    }
+
+    /* Center prompt */
+    .centerPrompt{
+      position:fixed;inset:0;display:grid;place-items:center;z-index:9;
+      pointer-events:none;
+      color:rgba(255,255,255,.86);
+      text-align:center;
+      padding:24px;
+    }
+    .centerPrompt .box{
+      pointer-events:none;
+      max-width:720px;
+    }
+    .big{
+      font-size:clamp(22px, 3.2vw, 34px);
+      font-weight:900;
+      letter-spacing:.02em;
+      margin-bottom:10px;
+    }
+    .small{
+      font-size:clamp(12px, 1.6vw, 14px);
+      color:rgba(255,255,255,.72);
+      line-height:1.7;
+    }
+
+    /* Outro overlay */
+    .outro{
+      position:fixed;inset:0;z-index:20;display:none;place-items:center;
+      background:rgba(0,0,0,.92);
+      color:var(--text);
+      padding:24px;
+    }
+    .outro.show{display:grid;}
+    .outro .panel{
+      width:min(720px, 92vw);
+      border:1px solid var(--line);
+      border-radius:20px;
+      background:rgba(255,255,255,.04);
+      padding:18px 18px 16px;
+    }
+    .outro h2{margin:0 0 8px;font-size:20px}
+    .outro p{margin:0 0 14px;color:var(--muted);line-height:1.7}
+    .outro .actions{display:flex;gap:10px;flex-wrap:wrap}
+    a.btn{display:inline-block;text-decoration:none}
+
+    /* Mobile safe */
+    @media (max-width:480px){
+      .hud{flex-direction:column;align-items:stretch}
+    }
   </style>
 </head>
 <body>
-  <div class="ui">
-    <div style="font-weight:700">時間感覚ブラックホール（Web）</div>
-    <div class="hint">マウスを中央へ寄せるほど「吸い込み」と「時間減速」が強くなる。<br>※音はSTART後に有効</div>
-    <div class="row">
-      <button id="start">START</button>
-      <button id="stop">STOP</button>
+  <div class="hud">
+    <div class="card">
+      <div class="title">Time Blackhole</div>
+      <div class="sub">
+        画面中央に近づくほど、世界が“減速”して吸い込まれます。<br>
+        音は START 後に有効（ブラウザ制限）。<br>
+        <span style="opacity:.85">Tip:</span> イヤホン推奨。
+      </div>
+      <div class="row">
+        <button class="btn primary" id="start">START</button>
+        <button class="btn" id="mute">MUTE</button>
+        <span class="pill" id="state">idle</span>
+      </div>
+      <div class="row">
+        <span class="pill">強度</span>
+        <input class="range" id="intensity" type="range" min="0" max="100" value="45">
+        <span class="pill" id="ival">45</span>
+      </div>
+      <div class="row">
+        <span class="pill">出口</span>
+        <button class="btn" id="skip">SKIP →</button>
+      </div>
     </div>
-    <div class="row">
-      <label style="font-size:12px;opacity:.85">強度</label>
-      <input id="intensity" type="range" min="0" max="100" value="35">
-      <span id="val" style="font-size:12px;opacity:.85">35</span>
+
+    <div class="card" style="max-width:260px">
+      <div class="title">Progress</div>
+      <div class="sub">中心へ近づくほど進みます</div>
+      <div class="row">
+        <span class="pill" id="prog">0%</span>
+        <span class="pill" id="fps">-- fps</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="centerPrompt">
+    <div class="box">
+      <div class="big">境界に入る。</div>
+      <div class="small">
+        マウス／指をゆっくり中央へ。<br>
+        “時間が吸われる感覚” を視覚と音で再現します。
+      </div>
+    </div>
+  </div>
+
+  <div class="outro" id="outro">
+    <div class="panel">
+      <h2>…向こう側へ。</h2>
+      <p>
+        あなたが感じた「遅さ」は、物理ではなく脳の推定です。<br>
+        この体験を、サイトの世界観・事業・物語へ接続できます。
+      </p>
+      <div class="actions">
+        <!-- あなたのトップや任意ページへ戻す -->
+        <a class="btn primary" href="../">サイトへ戻る</a>
+        <!-- 例：NEWSや事業紹介など好きに変更してOK -->
+        <a class="btn" href="../#news">NEWSを見る</a>
+      </div>
     </div>
   </div>
 
@@ -41,35 +176,55 @@
 
   <script>
     const canvas = document.getElementById("c");
-    const ctx = canvas.getContext("2d");
-    const intensityEl = document.getElementById("intensity");
-    const valEl = document.getElementById("val");
-    const startBtn = document.getElementById("start");
-    const stopBtn = document.getElementById("stop");
+    const ctx = canvas.getContext("2d", { alpha: false });
 
-    let W=0,H=0, DPR=1;
+    const startBtn = document.getElementById("start");
+    const muteBtn  = document.getElementById("mute");
+    const skipBtn  = document.getElementById("skip");
+
+    const intensityEl = document.getElementById("intensity");
+    const ivalEl = document.getElementById("ival");
+    const stateEl = document.getElementById("state");
+    const progEl = document.getElementById("prog");
+    const fpsEl  = document.getElementById("fps");
+    const outro  = document.getElementById("outro");
+
+    let W=0,H=0,DPR=1;
     function resize(){
       DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-      W = Math.floor(window.innerWidth * DPR);
-      H = Math.floor(window.innerHeight * DPR);
+      W = Math.floor(innerWidth * DPR);
+      H = Math.floor(innerHeight * DPR);
       canvas.width = W; canvas.height = H;
     }
-    window.addEventListener("resize", resize);
+    addEventListener("resize", resize);
     resize();
 
-    // pointer
-    let px = 0.5, py = 0.5; // 0..1
-    window.addEventListener("pointermove", e=>{
-      px = e.clientX / window.innerWidth;
-      py = e.clientY / window.innerHeight;
+    // Pointer
+    let px = 0.5, py = 0.5;
+    addEventListener("pointermove", e=>{
+      px = e.clientX / innerWidth;
+      py = e.clientY / innerHeight;
+    }, {passive:true});
+
+    // Optional: slight smoothing (feels “viscous”)
+    let spx = 0.5, spy = 0.5;
+
+    intensityEl.addEventListener("input", ()=>{
+      ivalEl.textContent = intensityEl.value;
     });
 
-    // Audio (WebAudio) : simple drone + heartbeat, with slowdown + lowpass
-    let audioCtx, master, lp, oscA, oscB, beat;
-    let audioOn = false;
+    // --- Audio ---
+    // If you want a real mp3 ambience, place ./assets/ambience.mp3 and set USE_FILE_AUDIO=true
+    const USE_FILE_AUDIO = false;
 
-    function setupAudio(){
+    let audioCtx, master, lp, fileAudio, srcNode, oscA, oscB;
+    let audioOn = false;
+    let muted = false;
+
+    async function setupAudio(){
+      if(audioCtx) return;
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
       master = audioCtx.createGain();
       master.gain.value = 0.0;
 
@@ -77,161 +232,230 @@
       lp.type = "lowpass";
       lp.frequency.value = 1600;
 
-      // drone
-      oscA = audioCtx.createOscillator();
-      oscA.type = "sine";
-      oscA.frequency.value = 110;
-
-      oscB = audioCtx.createOscillator();
-      oscB.type = "triangle";
-      oscB.frequency.value = 55;
-
-      const gA = audioCtx.createGain(); gA.gain.value = 0.12;
-      const gB = audioCtx.createGain(); gB.gain.value = 0.10;
-
-      oscA.connect(gA); oscB.connect(gB);
-      gA.connect(lp); gB.connect(lp);
       lp.connect(master);
       master.connect(audioCtx.destination);
 
-      // heartbeat (noise click)
-      beat = audioCtx.createOscillator();
-      beat.type = "square";
-      beat.frequency.value = 2.0; // will be modulated
-      const beatGain = audioCtx.createGain();
-      beatGain.gain.value = 0.0;
-      beat.connect(beatGain);
-      beatGain.connect(master);
+      if(USE_FILE_AUDIO){
+        fileAudio = new Audio("./assets/ambience.mp3");
+        fileAudio.loop = true;
+        fileAudio.crossOrigin = "anonymous";
+        srcNode = audioCtx.createMediaElementSource(fileAudio);
+        srcNode.connect(lp);
+      } else {
+        // Synth ambience (no files)
+        oscA = audioCtx.createOscillator();
+        oscA.type = "sine";
+        oscA.frequency.value = 110;
 
-      oscA.start(); oscB.start(); beat.start();
+        oscB = audioCtx.createOscillator();
+        oscB.type = "triangle";
+        oscB.frequency.value = 55;
+
+        const gA = audioCtx.createGain(); gA.gain.value = 0.12;
+        const gB = audioCtx.createGain(); gB.gain.value = 0.10;
+
+        oscA.connect(gA); oscB.connect(gB);
+        gA.connect(lp); gB.connect(lp);
+
+        oscA.start(); oscB.start();
+      }
     }
 
-    function audioStart(){
-      if(!audioCtx) setupAudio();
-      audioCtx.resume();
+    async function audioStart(){
+      await setupAudio();
+      await audioCtx.resume();
+
+      if(USE_FILE_AUDIO && fileAudio.paused){
+        await fileAudio.play().catch(()=>{});
+      }
+
       master.gain.cancelScheduledValues(audioCtx.currentTime);
-      master.gain.linearRampToValueAtTime(0.9, audioCtx.currentTime + 0.6);
+      master.gain.linearRampToValueAtTime(muted ? 0.0 : 0.9, audioCtx.currentTime + 0.6);
+
       audioOn = true;
+      stateEl.textContent = "running";
     }
+
     function audioStop(){
       if(!audioCtx) return;
       master.gain.cancelScheduledValues(audioCtx.currentTime);
-      master.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + 0.4);
+      master.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + 0.35);
       audioOn = false;
+      stateEl.textContent = "idle";
+    }
+
+    function toggleMute(){
+      muted = !muted;
+      muteBtn.textContent = muted ? "UNMUTE" : "MUTE";
+      if(audioCtx && master){
+        master.gain.cancelScheduledValues(audioCtx.currentTime);
+        const target = muted ? 0.0 : (audioOn ? 0.9 : 0.0);
+        master.gain.linearRampToValueAtTime(target, audioCtx.currentTime + 0.15);
+      }
     }
 
     startBtn.addEventListener("click", audioStart);
-    stopBtn.addEventListener("click", audioStop);
+    muteBtn.addEventListener("click", toggleMute);
+    skipBtn.addEventListener("click", ()=> showOutro(true));
 
-    intensityEl.addEventListener("input", ()=>{
-      valEl.textContent = intensityEl.value;
-    });
-
-    // Visual: starfield + swirl + vignette + "time slowdown" feel
-    const stars = Array.from({length: 900}, ()=>({
+    // --- Visual field ---
+    const stars = Array.from({length: 1100}, ()=>({
       x: Math.random()*2-1,
       y: Math.random()*2-1,
-      z: Math.random()*1,
+      z: Math.random(),
       s: Math.random()*1+0.2
     }));
 
+    // State machine
     let t = 0;
-    function frame(){
+    let reached = false; // reached horizon
+    let progress = 0; // 0..1
+    let fade = 0; // 0..1 for final transition
+
+    function showOutro(immediate=false){
+      reached = true;
+      fade = immediate ? 1 : fade;
+      outro.classList.add("show");
+      // stop audio softly
+      audioStop();
+    }
+
+    // FPS meter
+    let last = performance.now(), frames=0, fps=0;
+    function tickFps(now){
+      frames++;
+      if(now - last >= 1000){
+        fps = frames;
+        frames = 0;
+        last = now;
+        fpsEl.textContent = fps + " fps";
+      }
+    }
+
+    function draw(now){
+      tickFps(now);
+
       const I = Number(intensityEl.value)/100; // 0..1
-      // distance to center (mouse)
-      const cx = (px-0.5)*2;
-      const cy = (py-0.5)*2;
-      const dist = Math.min(1, Math.hypot(cx,cy));
-      // closer to center => stronger effect
+
+      // pointer smoothing
+      spx += (px - spx) * 0.06;
+      spy += (py - spy) * 0.06;
+
+      // distance to center (0..1)
+      const dx = (spx - 0.5)*2;
+      const dy = (spy - 0.5)*2;
+      const dist = Math.min(1, Math.hypot(dx,dy));
+      // pull stronger when closer to center
       const pull = I * (1 - dist);
 
-      // "time warp": reduce dt as pull increases
-      const dt = 0.016 * (1 - 0.75*pull);
+      // progress: “how deep”
+      // (pullが一定以上で進む。離れると少し戻る＝吸い込み感)
+      const targetProg = Math.max(0, Math.min(1, (pull - 0.08) / 0.70));
+      progress += (targetProg - progress) * 0.04;
+      progEl.textContent = Math.round(progress*100) + "%";
+
+      // time warp (dt decreases as progress increases)
+      const dt = 0.016 * (1 - 0.80*progress);
       t += dt;
 
-      // audio mapping
-      if(audioCtx && audioOn){
-        const speed = 1 - 0.55*pull; // 1.0 -> 0.45
-        // pseudo "slowdown": detune frequencies
+      // audio mapping (slow + dark)
+      if(audioCtx && audioOn && !USE_FILE_AUDIO){
+        const speed = 1 - 0.55*progress; // 1.0 -> 0.45
         oscA.frequency.setTargetAtTime(110*speed, audioCtx.currentTime, 0.08);
         oscB.frequency.setTargetAtTime(55*speed, audioCtx.currentTime, 0.08);
-        // lowpass darkening
-        lp.frequency.setTargetAtTime(1600*(0.35 + 0.65*(1-pull)), audioCtx.currentTime, 0.12);
+        lp.frequency.setTargetAtTime(1600*(0.35 + 0.65*(1-progress)), audioCtx.currentTime, 0.12);
+      }
+      if(audioCtx && audioOn && USE_FILE_AUDIO && fileAudio){
+        // playbackRate varies (some browsers clamp; still works enough)
+        fileAudio.playbackRate = 1 - 0.45*progress;
+        lp.frequency.setTargetAtTime(1600*(0.35 + 0.65*(1-progress)), audioCtx.currentTime, 0.12);
       }
 
-      // draw
+      // Transition trigger: reach "event horizon"
+      if(!reached && progress > 0.92){
+        reached = true;
+      }
+      if(reached){
+        fade = Math.min(1, fade + 0.012); // slow fade to “other side”
+        if(fade >= 1){
+          showOutro();
+        }
+      }
+
+      // --- Render ---
       ctx.clearRect(0,0,W,H);
 
-      // background gradient
-      const g = ctx.createRadialGradient(W/2,H/2,0, W/2,H/2, Math.max(W,H)*0.7);
-      g.addColorStop(0, `rgba(10,12,20,1)`);
-      g.addColorStop(1, `rgba(0,0,0,1)`);
-      ctx.fillStyle = g;
+      // base bg
+      const centerX = W/2, centerY = H/2;
+      const bg = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(W,H)*0.75);
+      bg.addColorStop(0, `rgb(10,12,20)`);
+      bg.addColorStop(1, `rgb(0,0,0)`);
+      ctx.fillStyle = bg;
       ctx.fillRect(0,0,W,H);
 
-      // swirl center
-      const centerX = W/2, centerY = H/2;
-
-      // stars
+      // starfield swirl
       ctx.save();
       ctx.translate(centerX, centerY);
-      const zoom = 0.6 + 1.4*pull;
+
+      const zoom = 0.65 + 1.6*progress;
       ctx.scale(zoom, zoom);
 
+      const base = Math.min(W,H)*0.48;
       for(const st of stars){
-        // rotate towards center
         const ang = Math.atan2(st.y, st.x);
         const r = Math.hypot(st.x, st.y);
 
-        // swirl: angle shifts over time, stronger near center
-        const swirl = (0.9*pull + 0.15) * (1/(0.15 + r)) * 0.08;
-        const a = ang + t*swirl*6;
+        const swirl = (0.9*progress + 0.12) * (1/(0.14 + r)) * 0.09;
+        const a = ang + t*swirl*6.3;
 
-        // radial in-fall
-        const fall = (0.15 + 0.85*(1 - st.z)) * pull * 0.35;
+        const fall = (0.12 + 0.88*(1 - st.z)) * progress * 0.42;
         const rr = Math.max(0.02, r - fall);
 
         const x = Math.cos(a)*rr;
         const y = Math.sin(a)*rr;
 
-        const px2 = x * Math.min(W,H)*0.48;
-        const py2 = y * Math.min(W,H)*0.48;
+        const sx = x * base;
+        const sy = y * base;
 
-        const size = (st.s * (0.6 + 2.2*pull)) * DPR;
-        const alpha = 0.25 + 0.75*(1 - st.z);
+        const size = (st.s * (0.6 + 2.5*progress)) * DPR;
+        const alpha = 0.18 + 0.82*(1 - st.z);
 
         ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-        ctx.fillRect(px2, py2, size, size);
+        ctx.fillRect(sx, sy, size, size);
       }
       ctx.restore();
 
-      // center "event horizon"
-      ctx.save();
-      const r0 = Math.min(W,H) * (0.06 + 0.05*pull);
-      const gh = ctx.createRadialGradient(centerX, centerY, r0*0.2, centerX, centerY, r0*2.4);
-      gh.addColorStop(0, `rgba(0,0,0,1)`);
-      gh.addColorStop(0.55, `rgba(0,0,0,1)`);
-      gh.addColorStop(0.80, `rgba(160,180,255,${0.18+0.35*pull})`);
-      gh.addColorStop(1, `rgba(0,0,0,0)`);
-      ctx.fillStyle = gh;
+      // event horizon glow
+      const r0 = Math.min(W,H) * (0.060 + 0.060*progress);
+      const ring = ctx.createRadialGradient(centerX, centerY, r0*0.25, centerX, centerY, r0*2.7);
+      ring.addColorStop(0, `rgba(0,0,0,1)`);
+      ring.addColorStop(0.55, `rgba(0,0,0,1)`);
+      ring.addColorStop(0.82, `rgba(180,200,255,${0.10 + 0.45*progress})`);
+      ring.addColorStop(1, `rgba(0,0,0,0)`);
+      ctx.fillStyle = ring;
       ctx.beginPath();
-      ctx.arc(centerX, centerY, r0*2.6, 0, Math.PI*2);
+      ctx.arc(centerX, centerY, r0*2.9, 0, Math.PI*2);
       ctx.fill();
-      ctx.restore();
 
-      // vignette (time-dimming)
-      ctx.save();
-      const vg = ctx.createRadialGradient(centerX, centerY, Math.min(W,H)*0.1, centerX, centerY, Math.max(W,H)*0.75);
+      // vignette darkening
+      const vg = ctx.createRadialGradient(centerX, centerY, Math.min(W,H)*0.14, centerX, centerY, Math.max(W,H)*0.78);
       vg.addColorStop(0, `rgba(0,0,0,0)`);
-      vg.addColorStop(0.55, `rgba(0,0,0,${0.08+0.25*pull})`);
-      vg.addColorStop(1, `rgba(0,0,0,${0.65+0.25*pull})`);
+      vg.addColorStop(0.55, `rgba(0,0,0,${0.08 + 0.28*progress})`);
+      vg.addColorStop(1, `rgba(0,0,0,${0.64 + 0.28*progress})`);
       ctx.fillStyle = vg;
       ctx.fillRect(0,0,W,H);
-      ctx.restore();
 
-      requestAnimationFrame(frame);
+      // final fade to “other side”
+      if(reached){
+        ctx.fillStyle = `rgba(255,255,255,${0.10*fade})`;
+        ctx.fillRect(0,0,W,H);
+        ctx.fillStyle = `rgba(0,0,0,${0.92*fade})`;
+        ctx.fillRect(0,0,W,H);
+      }
+
+      requestAnimationFrame(draw);
     }
-    requestAnimationFrame(frame);
+    requestAnimationFrame(draw);
   </script>
 </body>
 </html>
