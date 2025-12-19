@@ -4,194 +4,106 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
-  <title>Experience | Time Blackhole</title>
-
-  <!-- OGP（任意。poster.jpgを置いたら活きる） -->
-  <meta property="og:title" content="Time Blackhole Experience" />
-  <meta property="og:description" content="時間感覚が吸い込まれる“体験ページ”" />
-  <meta property="og:image" content="./assets/poster.jpg" />
-
+  <title>NO TIME HOLE</title>
   <style>
-    :root{
-      --panel: rgba(0,0,0,.38);
-      --line: rgba(255,255,255,.12);
-      --text: rgba(255,255,255,.92);
-      --muted: rgba(255,255,255,.70);
-    }
     html,body{height:100%;margin:0;background:#000;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}
-    canvas{position:fixed;inset:0;width:100%;height:100%;}
+    canvas{position:fixed;inset:0;width:100%;height:100%}
 
-    /* UI */
-    .hud{
-      position:fixed;left:16px;right:16px;top:16px;z-index:10;
-      display:flex;justify-content:space-between;gap:12px;align-items:flex-start;
-      pointer-events:none;
+    /* minimal overlay */
+    .overlay{
+      position:fixed;inset:0;pointer-events:none;
+      display:grid;place-items:center;padding:24px;
+      color:rgba(255,255,255,.88);
+      text-align:center;
+      mix-blend-mode:screen;
     }
-    .card{
+    .box{
+      max-width:720px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.28);
+      backdrop-filter: blur(10px);
+      border-radius:22px;
+      padding:18px 18px 16px;
+      box-shadow: 0 12px 60px rgba(0,0,0,.45);
+    }
+    .big{
+      font-weight:900;
+      letter-spacing:.04em;
+      font-size:clamp(18px,3vw,30px);
+      line-height:1.25;
+      margin-bottom:10px;
+    }
+    .small{
+      font-size:clamp(12px,1.7vw,14px);
+      color:rgba(255,255,255,.70);
+      line-height:1.8;
+    }
+
+    /* controls (almost hidden) */
+    .controls{
+      position:fixed;left:16px;top:16px;z-index:5;
+      display:flex;gap:10px;align-items:center;
       pointer-events:auto;
-      color:var(--text);
-      background:var(--panel);
-      border:1px solid var(--line);
-      backdrop-filter: blur(12px);
-      border-radius:16px;
-      padding:12px 14px;
-      max-width:min(520px, 100%);
-      box-shadow: 0 10px 40px rgba(0,0,0,.35);
+      opacity:.72;
+      transition:opacity .25s ease;
     }
-    .title{font-weight:800;letter-spacing:.02em}
-    .sub{margin-top:6px;font-size:12px;color:var(--muted);line-height:1.5}
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
-    .btn{
-      border:1px solid rgba(255,255,255,.18);
-      background:rgba(255,255,255,.08);
-      color:var(--text);
+    .controls:hover{opacity:1}
+    button{
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.06);
+      color:rgba(255,255,255,.88);
       border-radius:14px;
       padding:10px 12px;
       cursor:pointer;
       user-select:none;
+      backdrop-filter: blur(10px);
     }
-    .btn.primary{background:rgba(255,255,255,.14)}
-    .btn:active{transform: translateY(1px)}
-    .range{width:min(240px, 60vw)}
-    .pill{
-      font-size:12px;color:var(--muted);
-      border:1px solid rgba(255,255,255,.12);
-      border-radius:999px;
-      padding:6px 10px;
-      background:rgba(0,0,0,.22);
-    }
-
-    /* Center prompt */
-    .centerPrompt{
-      position:fixed;inset:0;display:grid;place-items:center;z-index:9;
+    button:active{transform:translateY(1px)}
+    .hint{
+      position:fixed;right:14px;bottom:12px;z-index:5;
       pointer-events:none;
-      color:rgba(255,255,255,.86);
-      text-align:center;
-      padding:24px;
-    }
-    .centerPrompt .box{
-      pointer-events:none;
-      max-width:720px;
-    }
-    .big{
-      font-size:clamp(22px, 3.2vw, 34px);
-      font-weight:900;
-      letter-spacing:.02em;
-      margin-bottom:10px;
-    }
-    .small{
-      font-size:clamp(12px, 1.6vw, 14px);
-      color:rgba(255,255,255,.72);
-      line-height:1.7;
+      font-size:12px;color:rgba(255,255,255,.55);
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.20);
+      border-radius:999px;padding:6px 10px;
+      backdrop-filter: blur(10px);
+      opacity:.85;
     }
 
-    /* Outro overlay */
-    .outro{
-      position:fixed;inset:0;z-index:20;display:none;place-items:center;
-      background:rgba(0,0,0,.92);
-      color:var(--text);
-      padding:24px;
-    }
-    .outro.show{display:grid;}
-    .outro .panel{
-      width:min(720px, 92vw);
-      border:1px solid var(--line);
-      border-radius:20px;
-      background:rgba(255,255,255,.04);
-      padding:18px 18px 16px;
-    }
-    .outro h2{margin:0 0 8px;font-size:20px}
-    .outro p{margin:0 0 14px;color:var(--muted);line-height:1.7}
-    .outro .actions{display:flex;gap:10px;flex-wrap:wrap}
-    a.btn{display:inline-block;text-decoration:none}
-
-    /* Mobile safe */
-    @media (max-width:480px){
-      .hud{flex-direction:column;align-items:stretch}
-    }
+    /* fade text away */
+    .overlay.fade{opacity:0;transition:opacity 1.2s ease}
   </style>
 </head>
 <body>
-  <div class="hud">
-    <div class="card">
-      <div class="title">Time Blackhole</div>
-      <div class="sub">
-        画面中央に近づくほど、世界が“減速”して吸い込まれます。<br>
-        音は START 後に有効（ブラウザ制限）。<br>
-        <span style="opacity:.85">Tip:</span> イヤホン推奨。
-      </div>
-      <div class="row">
-        <button class="btn primary" id="start">START</button>
-        <button class="btn" id="mute">MUTE</button>
-        <span class="pill" id="state">idle</span>
-      </div>
-      <div class="row">
-        <span class="pill">強度</span>
-        <input class="range" id="intensity" type="range" min="0" max="100" value="45">
-        <span class="pill" id="ival">45</span>
-      </div>
-      <div class="row">
-        <span class="pill">出口</span>
-        <button class="btn" id="skip">SKIP →</button>
-      </div>
-    </div>
-
-    <div class="card" style="max-width:260px">
-      <div class="title">Progress</div>
-      <div class="sub">中心へ近づくほど進みます</div>
-      <div class="row">
-        <span class="pill" id="prog">0%</span>
-        <span class="pill" id="fps">-- fps</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="centerPrompt">
-    <div class="box">
-      <div class="big">境界に入る。</div>
-      <div class="small">
-        マウス／指をゆっくり中央へ。<br>
-        “時間が吸われる感覚” を視覚と音で再現します。
-      </div>
-    </div>
-  </div>
-
-  <div class="outro" id="outro">
-    <div class="panel">
-      <h2>…向こう側へ。</h2>
-      <p>
-        あなたが感じた「遅さ」は、物理ではなく脳の推定です。<br>
-        この体験を、サイトの世界観・事業・物語へ接続できます。
-      </p>
-      <div class="actions">
-        <!-- あなたのトップや任意ページへ戻す -->
-        <a class="btn primary" href="../">サイトへ戻る</a>
-        <!-- 例：NEWSや事業紹介など好きに変更してOK -->
-        <a class="btn" href="../#news">NEWSを見る</a>
-      </div>
-    </div>
-  </div>
-
   <canvas id="c"></canvas>
 
+  <div class="controls">
+    <button id="enter">入る</button>
+    <button id="silence">無音</button>
+    <button id="vanish">言葉を消す</button>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="box">
+      <div class="big">ここには、過去も未来もない。</div>
+      <div class="small">
+        何かを“しよう”としなくていい。<br/>
+        ただ、中央に近づいて、しばらく居てください。<br/>
+        <span style="opacity:.9">（イヤホン推奨 / 音は「入る」で有効）</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint">中央へ。ゆっくり。</div>
+
   <script>
+    // --- Canvas setup ---
     const canvas = document.getElementById("c");
-    const ctx = canvas.getContext("2d", { alpha: false });
-
-    const startBtn = document.getElementById("start");
-    const muteBtn  = document.getElementById("mute");
-    const skipBtn  = document.getElementById("skip");
-
-    const intensityEl = document.getElementById("intensity");
-    const ivalEl = document.getElementById("ival");
-    const stateEl = document.getElementById("state");
-    const progEl = document.getElementById("prog");
-    const fpsEl  = document.getElementById("fps");
-    const outro  = document.getElementById("outro");
+    const ctx = canvas.getContext("2d", { alpha:false });
 
     let W=0,H=0,DPR=1;
     function resize(){
-      DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
       W = Math.floor(innerWidth * DPR);
       H = Math.floor(innerHeight * DPR);
       canvas.width = W; canvas.height = H;
@@ -199,263 +111,217 @@
     addEventListener("resize", resize);
     resize();
 
-    // Pointer
-    let px = 0.5, py = 0.5;
+    // Pointer (no numbers shown, no “progress” UI)
+    let px=0.5, py=0.5, spx=0.5, spy=0.5;
     addEventListener("pointermove", e=>{
       px = e.clientX / innerWidth;
       py = e.clientY / innerHeight;
     }, {passive:true});
 
-    // Optional: slight smoothing (feels “viscous”)
-    let spx = 0.5, spy = 0.5;
-
-    intensityEl.addEventListener("input", ()=>{
-      ivalEl.textContent = intensityEl.value;
-    });
-
-    // --- Audio ---
-    // If you want a real mp3 ambience, place ./assets/ambience.mp3 and set USE_FILE_AUDIO=true
-    const USE_FILE_AUDIO = false;
-
-    let audioCtx, master, lp, fileAudio, srcNode, oscA, oscB;
+    // --- Audio (timeless ambience; no tempo cues) ---
+    let audioCtx, master, lp, osc1, osc2, noiseSrc, noiseGain;
     let audioOn = false;
     let muted = false;
+
+    function pinkishNoiseBuffer(ctx, seconds=2){
+      const sr = ctx.sampleRate;
+      const len = Math.floor(sr*seconds);
+      const buf = ctx.createBuffer(1, len, sr);
+      const data = buf.getChannelData(0);
+      // simple brown-ish noise (feels like “space wind”)
+      let last = 0;
+      for(let i=0;i<len;i++){
+        const white = (Math.random()*2-1);
+        last = (last + 0.02*white) / 1.02;
+        data[i] = last * 2.5;
+      }
+      return buf;
+    }
 
     async function setupAudio(){
       if(audioCtx) return;
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
       master = audioCtx.createGain();
-      master.gain.value = 0.0;
+      master.gain.value = 0;
 
       lp = audioCtx.createBiquadFilter();
       lp.type = "lowpass";
-      lp.frequency.value = 1600;
+      lp.frequency.value = 900;
 
+      // drones (no beat, no BPM)
+      osc1 = audioCtx.createOscillator();
+      osc1.type = "sine";
+      osc1.frequency.value = 72;
+
+      osc2 = audioCtx.createOscillator();
+      osc2.type = "triangle";
+      osc2.frequency.value = 36;
+
+      const g1 = audioCtx.createGain(); g1.gain.value = 0.10;
+      const g2 = audioCtx.createGain(); g2.gain.value = 0.08;
+
+      // noise
+      noiseSrc = audioCtx.createBufferSource();
+      noiseSrc.buffer = pinkishNoiseBuffer(audioCtx, 2.5);
+      noiseSrc.loop = true;
+      noiseGain = audioCtx.createGain();
+      noiseGain.gain.value = 0.06;
+
+      // routing
+      osc1.connect(g1); osc2.connect(g2);
+      g1.connect(lp); g2.connect(lp);
+      noiseSrc.connect(noiseGain); noiseGain.connect(lp);
       lp.connect(master);
       master.connect(audioCtx.destination);
 
-      if(USE_FILE_AUDIO){
-        fileAudio = new Audio("./assets/ambience.mp3");
-        fileAudio.loop = true;
-        fileAudio.crossOrigin = "anonymous";
-        srcNode = audioCtx.createMediaElementSource(fileAudio);
-        srcNode.connect(lp);
-      } else {
-        // Synth ambience (no files)
-        oscA = audioCtx.createOscillator();
-        oscA.type = "sine";
-        oscA.frequency.value = 110;
+      // subtle slow detune (not rhythmic)
+      const lfo = audioCtx.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = 0.03; // very slow
+      const lfoGain = audioCtx.createGain();
+      lfoGain.gain.value = 4.0;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc1.detune);
+      lfoGain.connect(osc2.detune);
 
-        oscB = audioCtx.createOscillator();
-        oscB.type = "triangle";
-        oscB.frequency.value = 55;
-
-        const gA = audioCtx.createGain(); gA.gain.value = 0.12;
-        const gB = audioCtx.createGain(); gB.gain.value = 0.10;
-
-        oscA.connect(gA); oscB.connect(gB);
-        gA.connect(lp); gB.connect(lp);
-
-        oscA.start(); oscB.start();
-      }
+      osc1.start(); osc2.start(); noiseSrc.start(); lfo.start();
     }
 
-    async function audioStart(){
+    async function enter(){
       await setupAudio();
       await audioCtx.resume();
-
-      if(USE_FILE_AUDIO && fileAudio.paused){
-        await fileAudio.play().catch(()=>{});
-      }
-
-      master.gain.cancelScheduledValues(audioCtx.currentTime);
-      master.gain.linearRampToValueAtTime(muted ? 0.0 : 0.9, audioCtx.currentTime + 0.6);
-
       audioOn = true;
-      stateEl.textContent = "running";
-    }
-
-    function audioStop(){
-      if(!audioCtx) return;
       master.gain.cancelScheduledValues(audioCtx.currentTime);
-      master.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + 0.35);
-      audioOn = false;
-      stateEl.textContent = "idle";
+      master.gain.linearRampToValueAtTime(muted ? 0 : 0.9, audioCtx.currentTime + 0.8);
     }
 
     function toggleMute(){
       muted = !muted;
-      muteBtn.textContent = muted ? "UNMUTE" : "MUTE";
+      document.getElementById("silence").textContent = muted ? "音あり" : "無音";
       if(audioCtx && master){
         master.gain.cancelScheduledValues(audioCtx.currentTime);
-        const target = muted ? 0.0 : (audioOn ? 0.9 : 0.0);
-        master.gain.linearRampToValueAtTime(target, audioCtx.currentTime + 0.15);
+        master.gain.linearRampToValueAtTime(muted ? 0 : (audioOn ? 0.9 : 0), audioCtx.currentTime + 0.25);
       }
     }
 
-    startBtn.addEventListener("click", audioStart);
-    muteBtn.addEventListener("click", toggleMute);
-    skipBtn.addEventListener("click", ()=> showOutro(true));
-
-    // --- Visual field ---
-    const stars = Array.from({length: 1100}, ()=>({
+    // --- Visual field (no clocks, no counters) ---
+    const stars = Array.from({length: 1200}, ()=>({
       x: Math.random()*2-1,
       y: Math.random()*2-1,
       z: Math.random(),
-      s: Math.random()*1+0.2
+      s: Math.random()*1+0.15,
+      k: Math.random()*Math.PI*2
     }));
 
-    // State machine
-    let t = 0;
-    let reached = false; // reached horizon
-    let progress = 0; // 0..1
-    let fade = 0; // 0..1 for final transition
-
-    function showOutro(immediate=false){
-      reached = true;
-      fade = immediate ? 1 : fade;
-      outro.classList.add("show");
-      // stop audio softly
-      audioStop();
+    // “timeless” internal motion: not linear time; quasi drift
+    let phase = 0;
+    function drift(){
+      // no fixed dt; derives from micro variation
+      phase += 0.0035 + (Math.sin(phase*0.7)*0.0006);
+      return phase;
     }
 
-    // FPS meter
-    let last = performance.now(), frames=0, fps=0;
-    function tickFps(now){
-      frames++;
-      if(now - last >= 1000){
-        fps = frames;
-        frames = 0;
-        last = now;
-        fpsEl.textContent = fps + " fps";
-      }
-    }
+    function draw(){
+      // smooth pointer
+      spx += (px-spx)*0.05;
+      spy += (py-spy)*0.05;
 
-    function draw(now){
-      tickFps(now);
+      const cx = (spx-0.5)*2;
+      const cy = (spy-0.5)*2;
+      const dist = Math.min(1, Math.hypot(cx,cy));
+      // pull is “closeness to center” (no explicit progress)
+      const pull = (1 - dist);
+      // soften response so it feels viscous
+      const p = Math.pow(Math.max(0, pull), 1.35);
 
-      const I = Number(intensityEl.value)/100; // 0..1
-
-      // pointer smoothing
-      spx += (px - spx) * 0.06;
-      spy += (py - spy) * 0.06;
-
-      // distance to center (0..1)
-      const dx = (spx - 0.5)*2;
-      const dy = (spy - 0.5)*2;
-      const dist = Math.min(1, Math.hypot(dx,dy));
-      // pull stronger when closer to center
-      const pull = I * (1 - dist);
-
-      // progress: “how deep”
-      // (pullが一定以上で進む。離れると少し戻る＝吸い込み感)
-      const targetProg = Math.max(0, Math.min(1, (pull - 0.08) / 0.70));
-      progress += (targetProg - progress) * 0.04;
-      progEl.textContent = Math.round(progress*100) + "%";
-
-      // time warp (dt decreases as progress increases)
-      const dt = 0.016 * (1 - 0.80*progress);
-      t += dt;
-
-      // audio mapping (slow + dark)
-      if(audioCtx && audioOn && !USE_FILE_AUDIO){
-        const speed = 1 - 0.55*progress; // 1.0 -> 0.45
-        oscA.frequency.setTargetAtTime(110*speed, audioCtx.currentTime, 0.08);
-        oscB.frequency.setTargetAtTime(55*speed, audioCtx.currentTime, 0.08);
-        lp.frequency.setTargetAtTime(1600*(0.35 + 0.65*(1-progress)), audioCtx.currentTime, 0.12);
-      }
-      if(audioCtx && audioOn && USE_FILE_AUDIO && fileAudio){
-        // playbackRate varies (some browsers clamp; still works enough)
-        fileAudio.playbackRate = 1 - 0.45*progress;
-        lp.frequency.setTargetAtTime(1600*(0.35 + 0.65*(1-progress)), audioCtx.currentTime, 0.12);
-      }
-
-      // Transition trigger: reach "event horizon"
-      if(!reached && progress > 0.92){
-        reached = true;
-      }
-      if(reached){
-        fade = Math.min(1, fade + 0.012); // slow fade to “other side”
-        if(fade >= 1){
-          showOutro();
-        }
-      }
-
-      // --- Render ---
-      ctx.clearRect(0,0,W,H);
-
-      // base bg
+      // background
       const centerX = W/2, centerY = H/2;
-      const bg = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(W,H)*0.75);
-      bg.addColorStop(0, `rgb(10,12,20)`);
-      bg.addColorStop(1, `rgb(0,0,0)`);
+      const bg = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(W,H)*0.78);
+      bg.addColorStop(0, "rgb(10,12,20)");
+      bg.addColorStop(1, "rgb(0,0,0)");
       ctx.fillStyle = bg;
       ctx.fillRect(0,0,W,H);
 
-      // starfield swirl
+      // starfield swirl (uses drift phase)
+      const ph = drift();
+
       ctx.save();
       ctx.translate(centerX, centerY);
-
-      const zoom = 0.65 + 1.6*progress;
+      const zoom = 0.68 + 1.55*p;
       ctx.scale(zoom, zoom);
 
       const base = Math.min(W,H)*0.48;
       for(const st of stars){
-        const ang = Math.atan2(st.y, st.x);
-        const r = Math.hypot(st.x, st.y);
+        const ang0 = Math.atan2(st.y, st.x);
+        const r0 = Math.hypot(st.x, st.y);
 
-        const swirl = (0.9*progress + 0.12) * (1/(0.14 + r)) * 0.09;
-        const a = ang + t*swirl*6.3;
+        // swirl intensity grows near center; motion is not “time-based” in a readable way
+        const swirl = (0.11 + 0.85*p) * (1/(0.16 + r0)) * 0.09;
+        const a = ang0 + (Math.sin(ph + st.k)*0.6 + ph)*swirl*6.0;
 
-        const fall = (0.12 + 0.88*(1 - st.z)) * progress * 0.42;
-        const rr = Math.max(0.02, r - fall);
+        // in-fall without a “progress” feeling
+        const fall = (0.10 + 0.88*(1-st.z)) * p * 0.45;
+        const r = Math.max(0.02, r0 - fall);
 
-        const x = Math.cos(a)*rr;
-        const y = Math.sin(a)*rr;
+        const x = Math.cos(a)*r;
+        const y = Math.sin(a)*r;
 
         const sx = x * base;
         const sy = y * base;
 
-        const size = (st.s * (0.6 + 2.5*progress)) * DPR;
-        const alpha = 0.18 + 0.82*(1 - st.z);
+        const size = (st.s * (0.55 + 2.4*p)) * DPR;
+        const alpha = 0.14 + 0.86*(1 - st.z);
 
         ctx.fillStyle = `rgba(255,255,255,${alpha})`;
         ctx.fillRect(sx, sy, size, size);
       }
       ctx.restore();
 
-      // event horizon glow
-      const r0 = Math.min(W,H) * (0.060 + 0.060*progress);
-      const ring = ctx.createRadialGradient(centerX, centerY, r0*0.25, centerX, centerY, r0*2.7);
-      ring.addColorStop(0, `rgba(0,0,0,1)`);
-      ring.addColorStop(0.55, `rgba(0,0,0,1)`);
-      ring.addColorStop(0.82, `rgba(180,200,255,${0.10 + 0.45*progress})`);
-      ring.addColorStop(1, `rgba(0,0,0,0)`);
+      // event horizon
+      const rH = Math.min(W,H) * (0.055 + 0.070*p);
+      const ring = ctx.createRadialGradient(centerX, centerY, rH*0.25, centerX, centerY, rH*2.8);
+      ring.addColorStop(0, "rgba(0,0,0,1)");
+      ring.addColorStop(0.55, "rgba(0,0,0,1)");
+      ring.addColorStop(0.82, `rgba(180,200,255,${0.08 + 0.46*p})`);
+      ring.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = ring;
       ctx.beginPath();
-      ctx.arc(centerX, centerY, r0*2.9, 0, Math.PI*2);
+      ctx.arc(centerX, centerY, rH*3.0, 0, Math.PI*2);
       ctx.fill();
 
-      // vignette darkening
-      const vg = ctx.createRadialGradient(centerX, centerY, Math.min(W,H)*0.14, centerX, centerY, Math.max(W,H)*0.78);
-      vg.addColorStop(0, `rgba(0,0,0,0)`);
-      vg.addColorStop(0.55, `rgba(0,0,0,${0.08 + 0.28*progress})`);
-      vg.addColorStop(1, `rgba(0,0,0,${0.64 + 0.28*progress})`);
+      // vignette (timeless: reduces cues)
+      const vg = ctx.createRadialGradient(centerX, centerY, Math.min(W,H)*0.15, centerX, centerY, Math.max(W,H)*0.80);
+      vg.addColorStop(0, "rgba(0,0,0,0)");
+      vg.addColorStop(0.55, `rgba(0,0,0,${0.10 + 0.30*p})`);
+      vg.addColorStop(1, `rgba(0,0,0,${0.62 + 0.28*p})`);
       ctx.fillStyle = vg;
       ctx.fillRect(0,0,W,H);
 
-      // final fade to “other side”
-      if(reached){
-        ctx.fillStyle = `rgba(255,255,255,${0.10*fade})`;
-        ctx.fillRect(0,0,W,H);
-        ctx.fillStyle = `rgba(0,0,0,${0.92*fade})`;
-        ctx.fillRect(0,0,W,H);
+      // audio reacts to “center closeness” but not rhythmically
+      if(audioCtx && audioOn){
+        // darker + quieter near center, as if the world loses edges
+        const f = 1000*(0.35 + 0.65*(1-p));
+        lp.frequency.setTargetAtTime(f, audioCtx.currentTime, 0.20);
       }
 
       requestAnimationFrame(draw);
     }
     requestAnimationFrame(draw);
+
+    // --- UI actions ---
+    const overlay = document.getElementById("overlay");
+    document.getElementById("enter").addEventListener("click", async ()=>{
+      await enter();
+      // gently reduce UI dominance after entry
+      overlay.classList.add("fade");
+      setTimeout(()=>{ overlay.style.display="none"; }, 1400);
+    });
+    document.getElementById("silence").addEventListener("click", toggleMute);
+    document.getElementById("vanish").addEventListener("click", ()=>{
+      overlay.classList.add("fade");
+      setTimeout(()=>{ overlay.style.display="none"; }, 1400);
+    });
   </script>
 </body>
 </html>
